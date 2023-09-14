@@ -31,14 +31,14 @@ transactions_df['transactions'] = transactions_df['transactions'].apply(
 print("\n RESULTS FOR THE RANKING BASED METHOD:\n")
 
 
-# Construct the bipartite graph
+# Constructing the bipartite graph
 B_clean = nx.Graph()
 
 
-# Add nodes with the node attribute "bipartite"
+# Add nodes to the bipartite graph
 transaction_nodes_clean = transactions_df['trans_id'].unique().tolist()
-B_clean.add_nodes_from(transaction_nodes_clean, bipartite=0)  # Label transaction nodes as 0
-product_nodes_clean = set()  # To store unique products
+B_clean.add_nodes_from(transaction_nodes_clean, bipartite=0)  
+product_nodes_clean = set() 
 
 
 for _, row in transactions_df.iterrows():
@@ -47,17 +47,17 @@ for _, row in transactions_df.iterrows():
 
 
    for product in products:
-       B_clean.add_edge(row['trans_id'], product)
+       B_clean.add_edge(row['trans_id'], product) # Adding edges to the network
 
 
-B_clean.add_nodes_from(product_nodes_clean, bipartite=1)  # Label product nodes as 1
+B_clean.add_nodes_from(product_nodes_clean, bipartite=1)
 
 
-# Create the weighted graph using the cleaned data
+# Create the weighted graph using cleaned data
 product_network_clean = bipartite.weighted_projected_graph(B_clean, product_nodes_clean)
 
 
-# Nodes and Edges of the projected network
+# Print Nodes and Edges of the projected network
 num_nodes_product_clean = product_network_clean.number_of_nodes()
 num_edges_product_clean = product_network_clean.number_of_edges()
 
@@ -79,7 +79,7 @@ edges_with_weights_clean = [(u, v, d['weight']) for u, v, d in product_network_c
 sorted_edges_by_weight_clean = sorted(edges_with_weights_clean, key=lambda x: x[2], reverse=True)
 
 
-# Identifying potential substitutes
+# Identifying potential substitutes using Jaccard similarities
 def compute_jaccard_similarity(set1, set2):
    """Compute Jaccard Similarity between two sets."""
    intersection_len = len(set1.intersection(set2))
@@ -95,7 +95,6 @@ for product in product_nodes_clean:
    product_customer_map[product] = set(B_clean.neighbors(product))
 
 
-# Compute Jaccard similarities and co-purchase frequencies for product pairs
 product_pairs_info = []
 for product1 in product_nodes_clean:
    for product2 in product_nodes_clean:
@@ -113,11 +112,11 @@ product_pairs_info_sorted = sorted(product_pairs_info, key=lambda x: x[2], rever
 potential_substitutes = [pair for pair in product_pairs_info_sorted if pair[3] < 3 and pair[2] > 0.005]
 
 
-# Let's take the top 10 potential substitutes for demonstration purposes
+# Top 10 potential substitutes 
 top_potential_substitutes = potential_substitutes[:10]
 
 
-# Function to sort product pairs alphabetically to prevent duplicates
+# Sorting product pairs alphabetically to prevent duplicates
 def sort_product_pair(product_pair):
    products = product_pair.split(" & ")
    return " & ".join(sorted(products))
@@ -128,7 +127,7 @@ table_data = []
 table_data_sub = []
 
 
-# Add data from sorted_edges_by_weight_clean
+# Add data from sorted_edges_by_weight_clean i.e. complementary products
 for item in sorted_edges_by_weight_clean:
    table_data.append((" & ".join(item[:2]), item[2]))
 
@@ -139,7 +138,7 @@ for item in top_potential_substitutes:
    table_data_sub.append((sorted_product_pair, item[3]))
 
 
-# Convert to DataFrame for neat tabular display
+# Convert to DataFrame for tabular display
 df_display = pd.DataFrame(table_data, columns=["Complementary Products", "Count"])
 df_display_sub = pd.DataFrame(table_data_sub, columns=["Substitute Products", "Count"]).drop_duplicates().reset_index(drop=True)
 
@@ -152,16 +151,12 @@ print(df_display_sub.sort_values('Count', ascending=1).head(10))
 top_complementary_products = df_display.head(10)
 top_substitute_products = df_display_sub.sort_values('Count', ascending=1).head(10)
 
-
-# Step 1: Creating a matrix representing co-purchase frequencies for the top products identified (both complementary and substitutes).
-
-
-# Get list of top products
+# Get the list of top products for the below method
 top_complementary_product_list = [item.split(" & ") for item in top_complementary_products["Complementary Products"].tolist()]
 top_substitute_product_list = [item.split(" & ") for item in top_substitute_products["Substitute Products"].tolist()]
 
 
-# Flatten the lists and get unique product names
+# Getting unique product names
 unique_top_products = list(set([item for sublist in top_complementary_product_list + top_substitute_product_list for item in sublist]))
 
 
@@ -193,7 +188,7 @@ bins = [15, 25, 35, 45, 55, 65]
 labels = ['16-25', '26-35', '36-45', '46-55', '56-65']
 
 
-# Grouping the customer ages into bins using the correct column name
+# Grouping the customer ages into bins
 transactions_df['age_group'] = pd.cut(transactions_df['customer_age'], bins=bins, labels=labels, right=True)
 
 
@@ -216,7 +211,7 @@ for age in age_groups:
    age_group_dfs[age] = top_purchased_products_by_age[top_purchased_products_by_age['age_group'] == age]
 
 
-# Print the age group dictionaries
+# Print the age group results
 print("\n")
 for age, products_df in age_group_dfs.items():
    print(f"Age Group: {age}\n")
@@ -228,7 +223,7 @@ for age, products_df in age_group_dfs.items():
 fig, axes = plt.subplots(nrows=3, ncols=2, figsize=(10, 10))
 
 
-# Defining color palette
+# Defining the parameters for visualization
 palette = sns.color_palette("viridis", n_colors=10)
 
 
@@ -242,7 +237,6 @@ for ax, age_group in zip(axes.flatten(), age_groups):
    ax.tick_params(labelsize=10)
 
 
-# Adjusting the layout
 fig.delaxes(axes[2, 1])  # Remove the unused subplot
 fig.suptitle("Top 5 Products Purchased by Age Group", fontsize=10, y=1.03)
 plt.tight_layout()
@@ -253,7 +247,7 @@ plt.show()
 B_age_product = nx.Graph()
 
 
-# Add nodes for age groups with the node attribute "bipartite=0"
+# Add nodes for age groups
 B_age_product.add_nodes_from(age_groups, bipartite=0)
 
 
@@ -261,7 +255,7 @@ B_age_product.add_nodes_from(age_groups, bipartite=0)
 top_complementary_products = df_display["Complementary Products"].head(10).tolist()
 
 
-# Add nodes for top complementary products with the node attribute "bipartite=1"
+# Add nodes for top complementary products
 B_age_product.add_nodes_from(top_complementary_products, bipartite=1)
 
 
@@ -286,10 +280,6 @@ plt.figure(figsize=(12, 8))
 nx.draw(B_age_product, pos, with_labels=True, node_color=['skyblue']*len(age_groups)+['lightgreen']*len(top_complementary_products), node_size=2000, font_size=10, edge_color="gray")
 plt.title("Bipartite Network between Age Groups and Complementary Products")
 plt.show()
-
-
-# ------- Creating a Graph Between Age Groups and Substitute Products --------
-
 
 # Extracting top substitute products
 top_substitute_products = [pair[0] + " & " + pair[1] for pair in top_potential_substitutes]
@@ -322,7 +312,7 @@ print("\n RESULTS FOR RANDOM FOREST CLASSIFIER:\n")
 
 
 # Step 1: Data Preparation
-df = pd.read_csv('C:/Users/adity/Downloads/transactions.csv')
+df = pd.read_csv('transactions.csv')
 
 
 # Drop rows with missing values
